@@ -1,0 +1,11 @@
+{application,uelixir,
+             [{applications,[kernel,stdlib,elixir,logger,ranch,jason]},
+              {description,"uelixir"},
+              {modules,['Elixir.UElixir','Elixir.UElixir.Application',
+                        'Elixir.UElixir.Command','Elixir.UElixir.Dispatcher',
+                        'Elixir.UElixir.Transform',
+                        'Elixir.UElixir.Transform.Repo',
+                        'Elixir.UElixir.Vector3']},
+              {registered,[]},
+              {vsn,"0.1.0"},
+              {mod,{'Elixir.UElixir.Application',[]}}]}.
