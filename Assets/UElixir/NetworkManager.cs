@@ -1,41 +1,19 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using UnityEngine.Assertions;
 
 namespace UElixir
 {
-    [Serializable]
-    public class ElixirCommand
-    {
-        [JsonProperty("user_id")]
-        public int UserId { get; set; }
-        [JsonProperty("command")]
-        public string Command { get; set; }
-        [JsonProperty("args")]
-        public string Args { get; set; }
-
-        [JsonIgnore]
-        public bool RequireResponse { get; set; } = true;
-        [JsonIgnore]
-        public string Response { get; set; }
-
-        public override string ToString()
-        {
-            return $"{JsonSerializer.SerializeToString(this)}\r\n";
-        }
-
-        public byte[] ToByteArray()
-        {
-            return Encoding.UTF8.GetBytes(ToString());
-        }
-    }
+    public delegate void ResponseCallback(Response response);
 
     public class NetworkManager : MonoBehaviour
     {
@@ -56,18 +34,6 @@ namespace UElixir
         private Dictionary<int, NetworkUnit>      m_networkUnits = new Dictionary<int, NetworkUnit>();
         private Dictionary<int, NetworkTransform> m_transforms;
 
-        public async void RegisterUnit(NetworkUnit networkUnit)
-        {
-            if (networkUnit.Owned)
-            {
-                m_clientUnit = networkUnit;
-                int id = await Authenticate();
-                networkUnit.NetworkId = id;
-            }
-
-            m_networkUnits[networkUnit.NetworkId] = networkUnit;
-        }
-
         private void Awake()
         {
             if (Instance == null)
@@ -80,17 +46,131 @@ namespace UElixir
             }
         }
 
-        private void Start()
-        {
-            StartConnect();
+        private TcpClient m_client = new TcpClient { NoDelay = true };
 
-            Assert.IsNotNull(m_clientUnit);
-            RegisterUnit(m_clientUnit);
+        public string HostName    => m_hostName;
+        public int    Port        => m_port;
+        public bool   IsConnected => m_client.Connected;
+
+        public async Task Connect(Action<bool> onConnect)
+        {
+            try
+            {
+                var address = Dns.GetHostEntry(HostName).AddressList.First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+                await m_client.ConnectAsync(address, Port);
+
+                if (IsConnected)
+                {
+                    StartListenToServer();
+                }
+            }
+            catch (Exception e)
+            {
+                onConnect?.Invoke(IsConnected);
+                Debug.Log(e);
+            }
+
+            onConnect?.Invoke(IsConnected);
         }
 
-        private       TcpClient               m_client;
+        private Thread m_listener;
+
+        private void StartListenToServer()
+        {
+            m_listener?.Abort();
+
+            m_listener = new Thread(ListenToServer)
+            {
+                IsBackground = true,
+            };
+
+            m_listener.Start();
+        }
+
+        private void ListenToServer()
+        {
+            using (var stream = m_client.GetStream())
+            {
+                while (m_client.Connected)
+                {
+                    while (!stream.DataAvailable)
+                    {
+                        Thread.Sleep(m_waitInterval);
+
+                        if (!m_client.Connected)
+                        {
+                            return;
+                        }
+                    }
+
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        var buffer = new byte[1024];
+
+                        do
+                        {
+                            int length = stream.Read(buffer, 0, buffer.Length);
+                            memoryStream.Write(buffer, 0, length);
+                        } while (stream.DataAvailable);
+
+                        var responseString = Encoding.UTF8.GetString(memoryStream.ToArray());
+
+                        foreach (var line in responseString.Split('\n'))
+                        {
+                            Debug.Log($"Got response : {line}");
+                            var response = JsonSerializer.DeserializeFromString<Response>(responseString);
+
+                            while (m_responseCallbacks.Count > 0)
+                            {
+                                if (m_responseCallbacks.TryDequeue(out var callback))
+                                {
+                                    callback.Invoke(response);
+                                    break;
+                                }
+
+                                Thread.Sleep(m_waitInterval);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private ConcurrentQueue<ResponseCallback> m_responseCallbacks = new ConcurrentQueue<ResponseCallback>();
+
+        public void SendToServer(Message message, ResponseCallback responseCallback)
+        {
+            Assert.IsTrue(IsConnected);
+
+            var stream = m_client.GetStream();
+            Assert.IsTrue(stream.CanWrite);
+
+            var packet = message.ToByteArray();
+            stream.Write(packet, 0, packet.Length);
+
+            Debug.Log($"Message was sent : {message}");
+
+            m_responseCallbacks.Enqueue(responseCallback);
+        }
+
+        // ================== Regacy
+
+        public async void RegisterUnit(NetworkUnit networkUnit)
+        {
+            if (networkUnit.Owned)
+            {
+                m_clientUnit = networkUnit;
+            }
+
+            m_networkUnits[networkUnit.NetworkId] = networkUnit;
+        }
+
+        private void Start()
+        {
+        }
+
         private       CancellationTokenSource m_cancellation = new CancellationTokenSource();
-        private       Queue<ElixirCommand>    m_commandQueue = new Queue<ElixirCommand>();
+        private       Queue<Message>          m_commandQueue = new Queue<Message>();
         private const int                     m_waitInterval = 10;
         private       bool                    m_waitForRespond;
 
@@ -213,11 +293,10 @@ namespace UElixir
                 return;
             }
 
-            ElixirCommand command = new ElixirCommand
+            Message command = new Message
             {
                 UserId  = 0,
-                Command = "echo",
-                Args    = "my echo message"
+                Arg     = "my echo message"
             };
 
             SendCommand(command);
@@ -230,33 +309,14 @@ namespace UElixir
             Debug.Log($"Data received : {command.Response}");
         }
 
-        private void SendCommand(ElixirCommand command)
+        private void SendCommand(Message command)
         {
             m_waitForRespond = true;
 
             m_commandQueue.Enqueue(command);
         }
 
-        private async Task<int> Authenticate()
-        {
-            ElixirCommand command = new ElixirCommand
-            {
-                UserId  = -1,
-                Command = "authenticate",
-                Args    = null,
-            };
-
-            SendCommand(command);
-
-            while (m_waitForRespond)
-            {
-                await Task.Delay(m_waitInterval);
-            }
-
-            return int.Parse(command.Response);
-        }
-
-        private async void Update()
+        private async void Update_nonono()
         {
             //Debug.Log("Start update");
 
@@ -265,21 +325,19 @@ namespace UElixir
                 return;
             }
 
-            ElixirCommand reportUnitState = new ElixirCommand
+            Message reportUnitState = new Message
             {
                 UserId          = m_clientUnit.NetworkId,
-                Command         = "report_unit_state",
-                Args            = m_clientUnit.NetworkTransform.ToString(),
+                Arg             = m_clientUnit.NetworkTransform.ToString(),
                 RequireResponse = false,
             };
 
             SendCommand(reportUnitState);
 
-            ElixirCommand nextUnitTransforms = new ElixirCommand
+            Message nextUnitTransforms = new Message
             {
                 UserId          = m_clientUnit.NetworkId,
-                Command         = "get_unit_states",
-                Args            = null,
+                Arg             = null,
                 RequireResponse = true,
             };
 

@@ -7,7 +7,8 @@ defmodule UElixir.Application do
     port = System.get_env("port", "4000") |> String.to_integer()
 
     children = [
-      UElixir.Transform.Repo,
+      UElixir.Database,
+      UElixir.Authentication,
       {UElixir, [port: port]}
     ]
 

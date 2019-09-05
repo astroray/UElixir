@@ -1,0 +1,15 @@
+{
+    "name": "UElixir.Sample",
+    "references": [
+        "UElixir",
+        "UElixir.Authentication"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}

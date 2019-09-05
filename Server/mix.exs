@@ -23,7 +23,9 @@ defmodule UElixir.MixProject do
   defp deps do
     [
       {:ranch, "~> 1.7"},
-      {:jason, "~> 1.1"}
+      {:jason, "~> 1.1"},
+      {:ecto_sql, "~> 3.0"},
+      {:myxql, "~> 0.2.0"}
     ]
   end
 end

@@ -5,84 +5,96 @@ defmodule UElixir.Dispatcher do
 
   @behaviour :ranch_protocol
 
-  alias UElixir.{Vector3, Transform}
-  alias UElixir.Transform.Repo, as: TransformRepo
+  alias UElixir.{Message, Authentication}
 
+  # Client API
   def start_link(ref, _socket, transport, opts) do
     pid = :proc_lib.spawn_link(__MODULE__, :init, [{ref, transport, opts}])
     {:ok, pid}
   end
 
+  # Server API
   def init({ref, transport, opts}) do
     Logger.info("Starts protocol")
+
     {:ok, socket} = :ranch.handshake(ref)
     :ok = transport.setopts(socket, active: true, nodelay: true)
-
     :gen_server.enter_loop(__MODULE__, opts, %{ref: ref, socket: socket, transport: transport})
   end
 
-  def handle_info({:tcp, socket, data}, state = %{socket: socket, transport: transport}) do
-    String.split(data, "\r\n", trim: true)
-    |> Enum.each(fn line -> process_command(socket, transport, line) end)
+  # message receive callback
+  def handle_info({:tcp, _socket, data}, state) do
+    String.split(data, "\n", trim: true)
+    |> Enum.each(fn line -> process_message(line, state) end)
 
     {:noreply, state}
   end
 
+  # on socket closed
   def handle_info({:tcp_closed, socket}, state = %{socket: socket, transport: transport}) do
     Logger.info("Closing #{inspect(socket)}")
     transport.close(socket)
     {:stop, :normal, state}
   end
 
-  defp process_command(socket, transport, message) do
-    case UElixir.Command.parse(message) do
-      {:ok, {:echo, args}} ->
-        echo(socket, transport, args)
+  # handles error
+  def handle_info({:error, reason}, state) do
+    Logger.error("Error : #{inspect(reason)}")
+    {:noreply, state}
+  end
 
-      {:ok, {:authenticate}} ->
-        authenticate(socket, transport)
+  # handle all messages
+  defp process_message(data, state) do
+    case Message.parse(data) do
+      {:ok, message} ->
+        case message.request do
+          :authenticate ->
+            {:ok, args} = Jason.decode(message.arg, keys: :atoms)
+            authenticate(args, state)
 
-      {:ok, {:report_unit_state, user_id, data}} ->
-        report_unit_state(user_id, data)
+          :echo ->
+            GenServer.call(__MODULE__, message)
 
-      {:ok, {:get_unit_states}} ->
-        get_unit_states(socket, transport)
+          _ ->
+            GenServer.call(__MODULE__, {:error, message})
+        end
 
-      {:error, {error_type, command}} ->
-        Logger.error("#{error_type} : #{command}")
-        send_data(socket, transport, "null\r\n")
+      {:error, reason} ->
+        GenServer.call(__MODULE__, {:error, reason})
     end
   end
 
-  defp send_data(socket, transport, data) do
-    case transport.send(socket, data) do
-      :ok -> Logger.debug("Send data : #{data} -> #{inspect(socket)}")
-      {:error, error_type} -> Logger.error("Failed to send data. Reason : #{inspect(error_type)}")
+  # echo callback
+  def handle_call({:echo, data}, _from, state = %{socket: socket, transport: transport}) do
+    send_response(socket, transport, data, state)
+  end
+
+  # authenticate callback
+  defp authenticate(
+         %{user_name: user_name, password: password},
+         state = %{socket: socket, transport: transport}
+       ) do
+    case Authentication.authenticate(user_name, password) do
+      {:ok, id} ->
+        send_response(socket, transport, %{from: :authenticate, result: :ok, value: to_string(id)}, state)
+
+      {:error, reason} ->
+        send_response(socket, transport, %{from: :authenticate, result: :error, value: to_string(reason)}, state)
     end
   end
 
-  # Commands
-  def echo(socket, transport, data) do
-    send_data(socket, transport, data)
-  end
+  # Helper
+  def send_response(socket, transport, message, state) do
+    {:ok, packet} = Jason.encode(message)
 
-  def authenticate(socket, transport) do
-    id = TransformRepo.count()
-    TransformRepo.put(id, %Transform{})
-    send_data(socket, transport, to_string(id))
-  end
+    case transport.send(socket, packet) do
+      :ok ->
+        Logger.debug("Send response : #{inspect(message)} -> #{inspect(socket)}")
+        {:reply, :ok, state}
 
-  @spec report_unit_state(integer, Transform.t()) :: :ok
-  def report_unit_state(user_id, state) do
-    TransformRepo.put(user_id, state)
-
-    Logger.debug(inspect(TransformRepo.data()))
-  end
-
-  def get_unit_states(socket, transport) do
-    unit_states = TransformRepo.data()
-    {:ok, json} = Jason.encode(unit_states)
-    Logger.debug("Encoded: #{json}")
-    send_data(socket, transport, json)
+      {:error, reason} ->
+        Logger.debug("Send response error(#{inspect(reason)}), #{packet}")
+        {:noreply, reason, state}
+    end
   end
 end
