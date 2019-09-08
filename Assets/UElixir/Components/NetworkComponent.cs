@@ -41,31 +41,12 @@ namespace UElixir
         /// <summary>
         /// Set this value to true if this component should send message to server and replicate its properties.
         /// </summary>
-        public bool ShouldUpdate { get;    set; }
+        internal bool ShouldUpdate { get;  private set; }
         public NetworkEntity Entity { get; set; }
-
-        private int m_lastTimeStamp = -1;
-        public int LastTimeStamp
-        {
-            get => m_lastTimeStamp;
-            private set
-            {
-                if (m_lastTimeStamp == -1)
-                {
-                    m_lastTimeStamp = value;
-                }
-                else
-                {
-                    DeltaTime       = value - m_lastTimeStamp;
-                    m_lastTimeStamp = value;
-                }
-            }
-        }
-        public float DeltaTime { get; private set; }
 
         private IDictionary<string, PropertyInfo> m_properties;
 
-        private void Awake()
+        protected virtual void Awake()
         {
             Entity = GetComponent<NetworkEntity>();
 
@@ -76,7 +57,12 @@ namespace UElixir
 
         internal NetworkComponentState GetState()
         {
-            return OnGetState();
+            if (Entity.HasLocalAuthority)
+            {
+                return OnGetState();
+            }
+
+            throw new InvalidOperationException("Remote authoritative entity should not send the state to server.");
         }
 
         protected virtual NetworkComponentState OnGetState()
@@ -104,12 +90,10 @@ namespace UElixir
         internal void SetState(NetworkComponentState componentState, int timeStamp)
         {
             Assert.AreEqual(GetType().Name, componentState.Name);
-
-            LastTimeStamp = timeStamp;
-            OnSetState(componentState);
+            OnSetState(componentState, timeStamp);
         }
 
-        protected virtual void OnSetState(NetworkComponentState componentState)
+        protected virtual void OnSetState(NetworkComponentState componentState, int timeStamp)
         {
             foreach (var componentProperty in componentState.Properties)
             {
@@ -122,6 +106,19 @@ namespace UElixir
                     Debug.LogError($"Property not exists : {componentProperty.Name}");
                 }
             }
+        }
+
+        protected virtual void Update()
+        {
+            if (Entity.HasLocalAuthority)
+            {
+                ShouldUpdate = ShouldUpdateProperty();
+            }
+        }
+
+        protected virtual bool ShouldUpdateProperty()
+        {
+            return true;
         }
     }
 }

@@ -5,10 +5,10 @@ defmodule UElixir.Application do
     import Supervisor.Spec
 
     port = System.get_env("port", "4000") |> String.to_integer()
-    tick_resolution = System.get_env("tick", "10") |> String.to_integer()
+    time_step = System.get_env("time_step", "100") |> String.to_integer()
 
     children = [
-      {UElixir, [port: port, tick_resolution: tick_resolution, channel_count: 1]},
+      {UElixir, [port: port, time_step: time_step, channel_count: 1]},
       UElixir.Database,
       UElixir.Authentication,
     ]

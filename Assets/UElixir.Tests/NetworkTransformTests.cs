@@ -36,7 +36,6 @@ namespace UElixir.Tests
         {
             m_networkTransform.Position = m_expectedPosition;
             m_networkTransform.Rotation = m_expectedRotation;
-            m_networkTransform.Scale    = m_expectedScale;
 
             yield return null;
 
@@ -78,19 +77,17 @@ namespace UElixir.Tests
                 {
                     new NetworkComponentProperty { Name = nameof(NetworkTransform.Position), Value = JsonSerializer.Serialize(m_expectedPosition) },
                     new NetworkComponentProperty { Name = nameof(NetworkTransform.Rotation), Value = JsonSerializer.Serialize(m_expectedRotation) },
-                    new NetworkComponentProperty { Name = nameof(NetworkTransform.Scale), Value    = JsonSerializer.Serialize(m_expectedScale) },
                 }
             };
 
             yield return null;
 
-            m_networkTransform.SetState(state, -1);
+            m_networkTransform.SetState(state, 0);
 
             yield return null;
 
             Assert.AreEqual(m_expectedPosition, m_networkTransform.Position);
             Assert.AreEqual(m_expectedRotation, m_networkTransform.Rotation);
-            Assert.AreEqual(m_expectedScale,    m_networkTransform.Scale);
         }
     }
 }

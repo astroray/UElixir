@@ -94,7 +94,6 @@ namespace UElixir.Tests
                         {
                             new NetworkComponentProperty { Name = nameof(NetworkTransform.Position), Value = JsonSerializer.Serialize(m_expectedPosition) },
                             new NetworkComponentProperty { Name = nameof(NetworkTransform.Rotation), Value = JsonSerializer.Serialize(m_expectedRotation) },
-                            new NetworkComponentProperty { Name = nameof(NetworkTransform.Scale), Value    = JsonSerializer.Serialize(m_expectedScale) },
                         }
                     }
                 }
@@ -102,7 +101,7 @@ namespace UElixir.Tests
 
             yield return null;
 
-            m_networkEntity.SetState(state, -1);
+            m_networkEntity.SetState(state, 0);
 
             yield return null;
 

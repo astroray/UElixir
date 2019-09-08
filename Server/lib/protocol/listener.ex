@@ -126,28 +126,32 @@ defmodule UElixir.Listener do
   # update entity states
   defp handle_message(
          :update_entity_states,
-         from_user_id,
+         _from_user_id,
          argument_string,
-         %{channel_index: channel_index, transport: transport}
+         %{socket: socket, channel_index: channel_index}
        ) do
+
     UElixir.get_channel(channel_index)
-    |> Channel.get_users()
-    |> Enum.each(fn {socket, user_id} ->
-      if user_id != from_user_id do
-        send_message(
-          socket,
-          transport,
-          Response.new(:update_entity_states, :ok, argument_string)
-        )
-      end
-    end)
+    |> Channel.update_entity_states(socket, argument_string)
+
+    # UElixir.get_channel(channel_index)
+    # |> Channel.get_users()
+    # |> Enum.each(fn {socket, user_id} ->
+    #   if user_id != from_user_id do
+    #     send_message(
+    #       socket,
+    #       transport,
+    #       Response.new(:update_entity_states, :ok, argument_string)
+    #     )
+    #   end
+    # end)
   end
 
   @spec send_message(any(), atom(), Response.t()) :: :ok | {:error, any()}
-  defp send_message(socket, transport, message) do
+  def send_message(socket, transport, message) do
     {:ok, packet} = Jason.encode(message)
 
-    case transport.send(socket, packet) do
+    case transport.send(socket, "#{packet}\n") do
       :ok ->
         Logger.debug("Send response : #{inspect(message)} -> #{inspect(socket)}")
         :ok

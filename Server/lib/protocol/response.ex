@@ -6,6 +6,6 @@ defmodule UElixir.Response do
 
   @spec new(atom(), atom(), String.t()) :: __MODULE__.t()
   def new(request, result, args) do
-    %__MODULE__{request: request, result: result, args: args, time_stamp: UElixir.current_time()}
+    %__MODULE__{request: request, result: result, args: args, time_stamp: UElixir.current_tick()}
   end
 end

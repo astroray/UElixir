@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using UnityEngine.Assertions;
 
 namespace UElixir
@@ -29,7 +30,7 @@ namespace UElixir
         [SerializeField]
         private bool m_isConnected;
         [SerializeField]
-        private int m_latency = 100;
+        private int m_timeStep = 100;
         [SerializeField]
         private NetworkEntity m_entityPrefab;
 
@@ -39,6 +40,10 @@ namespace UElixir
         public  string    HostName    => m_hostName;
         public  int       Port        => m_port;
         public  bool      IsConnected => m_client.Connected;
+        /// <summary>
+        /// Time step in seconds.
+        /// </summary>
+        public float TimeStep => m_timeStep * 0.001f;
 
         private Thread                            m_listener;
         private ConcurrentQueue<ResponseCallback> m_responseCallbacks = new ConcurrentQueue<ResponseCallback>();
@@ -58,13 +63,10 @@ namespace UElixir
             }
         }
 
-        private void Start()
-        {
-            InvokeRepeating(nameof(ReportEntityStates), 0.0f, (float) TimeSpan.FromMilliseconds(m_latency).TotalSeconds);
-        }
-
         private void Update()
         {
+            ReportEntityStates();
+
             while (m_updateQueue.Count > 0)
             {
                 m_updateQueue.Dequeue().Invoke();
@@ -148,7 +150,7 @@ namespace UElixir
                             memoryStream.Write(buffer, 0, length);
                         } while (stream.DataAvailable);
 
-                        var responseString = Encoding.UTF8.GetString(memoryStream.ToArray());
+                        var responseString = Encoding.UTF8.GetString(memoryStream.ToArray()).Trim();
 
                         foreach (var line in responseString.Split('\n'))
                         {
@@ -164,7 +166,7 @@ namespace UElixir
             Debug.Log($"Got response : {line}");
             var response = JsonSerializer.Deserialize<Response>(line);
 
-            if (response.Request.Equals("update_entity_states"))
+            if (response.Request.Equals("replicate_entity_states"))
             {
                 ReplicateEntityStates(response);
             }
@@ -202,7 +204,9 @@ namespace UElixir
 
         private void ReportEntityStates()
         {
-            if (!Authentication.IsAuthenticated || m_entities.Count == 0)
+            if (!Authentication.IsAuthenticated
+                || m_entities.Count == 0
+                || !m_entities.Any(entity => entity.Value.ShouldUpdate))
             {
                 return;
             }
@@ -223,7 +227,9 @@ namespace UElixir
 
         private void ReplicateEntityStates(Response response)
         {
-            if (!Authentication.IsAuthenticated || m_entities.Count == 0)
+            if (!Authentication.IsAuthenticated
+                || m_entities.Count == 0
+                || string.IsNullOrEmpty(response.Args))
             {
                 return;
             }
@@ -233,9 +239,12 @@ namespace UElixir
 
             EnqueueMainThreadCommand(() =>
             {
+                var usedEntities = new List<Guid>();
+
                 foreach (var entityState in entityStates)
                 {
                     var entityId = new Guid(entityState.EntityId);
+                    usedEntities.Add(entityId);
 
                     if (m_entities.TryGetValue(entityId, out var entity))
                     {
@@ -243,7 +252,17 @@ namespace UElixir
                     }
                     else
                     {
-                        SpawnRemoteEntity(m_entityPrefab, entityId, entityState);
+                        SpawnRemoteEntity(m_entityPrefab, entityId, entityState, response.TimeStamp);
+                    }
+                }
+
+                var deletedEntities = m_entities.Keys.Except(usedEntities);
+
+                foreach (var deletedEntityId in deletedEntities)
+                {
+                    if (!m_entities[deletedEntityId].HasLocalAuthority)
+                    {
+                        Destroy(m_entities[deletedEntityId].gameObject);
                     }
                 }
             });
@@ -283,7 +302,18 @@ namespace UElixir
 
             EnqueueMainThreadCommand(() =>
             {
-                var newId = new Guid(response.Args);
+                Guid newId = new Guid();
+
+                try
+                {
+                    newId = Guid.Parse(response.Args);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Invalid Guid : {response.Args}");
+
+                    throw;
+                }
 
                 var spawned = Instantiate(entity);
                 spawned.NetworkId = newId;
@@ -294,13 +324,13 @@ namespace UElixir
             });
         }
 
-        private void SpawnRemoteEntity(NetworkEntity prefab, Guid networkId, NetworkEntityState initialState)
+        private void SpawnRemoteEntity(NetworkEntity prefab, Guid networkId, NetworkEntityState initialState, int timeStamp)
         {
             var spawned = Instantiate(prefab);
             spawned.NetworkId         = networkId;
             spawned.HasLocalAuthority = false;
 
-            spawned.SetState(initialState, -1);
+            spawned.SetState(initialState, timeStamp);
 
             RegisterEntity(spawned);
         }
@@ -308,6 +338,11 @@ namespace UElixir
         private void RegisterEntity(NetworkEntity entity)
         {
             Instance.m_entities.Add(entity.NetworkId, entity);
+        }
+
+        internal void UnregisterEntity(NetworkEntity entity)
+        {
+            Instance.m_entities.Remove(entity.NetworkId);
         }
         #endregion
     }
