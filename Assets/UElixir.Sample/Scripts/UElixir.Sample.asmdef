@@ -1,8 +1,7 @@
 {
     "name": "UElixir.Sample",
     "references": [
-        "UElixir",
-        "UElixir.Authentication"
+        "UElixir"
     ],
     "optionalUnityReferences": [],
     "includePlatforms": [],

@@ -95,6 +95,6 @@ MonoBehaviour:
   m_hostName: localhost
   m_port: 4000
   m_isConnected: 0
-  m_unitPrefab: {fileID: 2157859997179879094, guid: 9f9b2989654fae34cb075bec47f2cd50,
+  m_latency: 100
+  m_entityPrefab: {fileID: 1923025804284175600, guid: 9f9b2989654fae34cb075bec47f2cd50,
     type: 3}
-  m_clientUnit: {fileID: 0}
