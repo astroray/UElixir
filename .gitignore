@@ -60,12 +60,12 @@ sysinfo.txt
 crashlytics-build.properties
 
 # Elixir generated
-/_build/
-/cover/
-/deps/
-/doc/
-/.fetch
-erl_crash.dump
-*.ez
-uexlixir-*.tar
-*/.elixir_ls
+Server/_build/
+Server/cover/
+Server/deps/
+Server/doc/
+Server/.fetch
+Server/erl_crash.dump
+Server/*.ez
+Server/uexlixir-*.tar
+Server/.elixir_ls
