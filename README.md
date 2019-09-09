@@ -1,6 +1,6 @@
 # UElixir
 
-Technical demo of MMO Game using Unity3D with dedicated server Elixir.
+Technical demo of MMO Game using Unity3D with dedicated server using Elixir.
 
 Hope that inspire someone trying to use Elixir Server and Unity3D client.
 
@@ -38,7 +38,7 @@ public sealed class NetworkTransform : NetworkComponent
 
 **Assumes that all client is reliable.**
 
-This is bad assumption. But since this is simple demo project, I didn't implement funtionalities such as checking whether the state is valid.
+This is bad assumption. But since this is simple demo project, I didn't implement functionalities such as checking whether the state is valid.
 
 **Scale property of Transform is ignored for simplicity**
 
@@ -47,9 +47,9 @@ I don't care about scale and it is rarely concerned.
 **Adds components dynamically is not supported.**
 
 As same as above, it is just for simplicity. To solve this, you need to write custom AddComponent method.
-And when a component added and it is NetworkComponent then adds the component to NetwokrEntity's component map.
+And when a component added and it is NetworkComponent then adds the component to NetworkEntity's component map.
 
-**Entities having local authority will not recieve states from the server.**
+**Entities having local authority will not receive states from the server.**
 
 Needs to add some logic to force update local entities.
 
@@ -140,7 +140,7 @@ Detailed explanation about this project on server side.
         - channel.ex : manages user groups.
         - listener.ex : handles TCP packet and message.
         - message.ex : represents the message from clients to the server.
-        - reponse.ex : represents the response from the server to clients.
+        - response.ex : represents the response from the server to clients.
     - application.ex : application entry to supervise other modules.
     - database.ex : [Ecto](https://hexdocs.pm/ecto/Ecto.html) repository to MySQL.
     - u_elixir.ex : represents the server.
@@ -153,7 +153,7 @@ Detailed explanation about this project on server side.
 UElixir.Application is entry point of this mix project. There are a few options you can adjust.
 
 - port : the port number for your network connection.
-- time_step : the internal time to apply authorative state to your clients in milliseconds.
+- time_step : the internal time to apply authoritative state to your clients in milliseconds.
 - channel_count : the number of channels to separate user group. **(NOT_IMPLEMENTED)**
 
 ```elixir
@@ -293,7 +293,7 @@ Here is simple echo callback of ```handle_message/4```.
 All handle_message/4 has the same spec as above.
 
 - argument 1 (Atom) : Represents the request from the client.
-- argument 2 (Interger) : Tells what client request.
+- argument 2 (Integer) : Tells what client request.
 - argument 3 (String) : Varies by requests. In this echo request, this is the same string as client sent.
 - argument 4 (Any) : Listener's state.
     - ref : unique reference for this listener's parent.
@@ -334,7 +334,7 @@ Given time step, It broadcasts entity states to all users in this group.
 
 ## Client side
 
-Detailed explantion about this project on client side.
+Detailed explanation about this project on client side.
 
 ### Dependencies
 
@@ -354,7 +354,7 @@ Detailed explantion about this project on client side.
         - Authentication.cs : Helper to deal with authentication.
         - Message.cs : Represents the message from clients to server.
         - Response.cs : Represents the message from server to clients.
-    - /Seirlaization
+    - /Serialization
         - JsonSerializer.cs : Wrapper of Json .Net
         - QuaternionConverter.cs : Custom json converter for UnityEngine.Quaternion.
     - AssemblyInfo.cs : Assembly information.
@@ -493,13 +493,13 @@ Now we can save state by time stamp to do interpolation to show smooth illusion 
     }
 ```
 
-The detailed explanation about entity interpoplation is [here](https://www.gabrielgambetta.com/entity-interpolation.html).
+The detailed explanation about entity interpolation is [here](https://www.gabrielgambetta.com/entity-interpolation.html).
 
 ## References
 
 Useful resources I found when I was working on this project.
 
-- [Official Elxlir Document](https://elixir-lang.org/getting-started/introduction.html)
+- [Official Elixir Document](https://elixir-lang.org/getting-started/introduction.html)
 - [Ranch User Guide](https://ninenines.eu/docs/en/ranch/2.0/guide/)
 - [Ecto Document](https://hexdocs.pm/ecto/Ecto.html)
 - [Jason Document](https://hexdocs.pm/jason/readme.html)
