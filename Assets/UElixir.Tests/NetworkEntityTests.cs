@@ -12,17 +12,17 @@ namespace UElixir.Tests
     {
         private readonly Vector3       m_expectedPosition = new Vector3(42.0f, 42.0f, 42.0f);
         private readonly Quaternion    m_expectedRotation = Quaternion.Euler(30.0f, 25.0f, -24.0f);
-        private readonly Vector3       m_expectedScale    = new Vector3(22.0f, -12.0f, 33.44f);
         private          NetworkEntity m_networkEntity;
 
         [UnitySetUp]
         public IEnumerator Setup()
         {
             var gameObject = new GameObject();
-            m_networkEntity           = gameObject.AddComponent<NetworkEntity>();
-            m_networkEntity.NetworkId = Guid.NewGuid();
-
             gameObject.AddComponent<NetworkTransform>();
+
+            m_networkEntity                   = gameObject.GetComponent<NetworkEntity>();
+            m_networkEntity.NetworkId         = Guid.NewGuid();
+            m_networkEntity.HasLocalAuthority = true;
 
             yield return null;
         }
@@ -38,9 +38,8 @@ namespace UElixir.Tests
         [UnityTest]
         public IEnumerator GetStateTest()
         {
-            m_networkEntity.transform.position   = m_expectedPosition;
-            m_networkEntity.transform.rotation   = m_expectedRotation;
-            m_networkEntity.transform.localScale = m_expectedScale;
+            m_networkEntity.transform.position = m_expectedPosition;
+            m_networkEntity.transform.rotation = m_expectedRotation;
 
             yield return null;
 
@@ -65,10 +64,6 @@ namespace UElixir.Tests
                         break;
                     case "Rotation":
                         Assert.AreEqual(m_expectedRotation, JsonSerializer.Deserialize<Quaternion>(property.Value));
-
-                        break;
-                    case "Scale":
-                        Assert.AreEqual(m_expectedScale, JsonSerializer.Deserialize<Vector3>(property.Value));
 
                         break;
                     default:
@@ -101,13 +96,13 @@ namespace UElixir.Tests
 
             yield return null;
 
+            m_networkEntity.HasLocalAuthority = false;
             m_networkEntity.SetState(state, 0);
 
             yield return null;
 
             Assert.AreEqual(m_expectedPosition, m_networkEntity.transform.position);
             Assert.AreEqual(m_expectedRotation, m_networkEntity.transform.rotation);
-            Assert.AreEqual(m_expectedScale,    m_networkEntity.transform.localScale);
         }
     }
 }

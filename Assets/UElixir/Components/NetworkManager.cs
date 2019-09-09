@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,7 +8,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using UnityEngine;
 using UnityEngine.Assertions;
 
 namespace UElixir
@@ -18,7 +17,11 @@ namespace UElixir
 
     public delegate void EntitySpawnCallback(NetworkEntity entity, bool isSuccess);
 
-    public class NetworkManager : MonoBehaviour
+    /// <summary>
+    /// Manages network resources such as Socket.
+    /// This component should exist only one instance in the scene.
+    /// </summary>
+    public sealed class NetworkManager : MonoBehaviour
     {
         private static NetworkManager m_instance;
         public static  NetworkManager Instance => m_instance;
@@ -27,9 +30,7 @@ namespace UElixir
         private string m_hostName = "localhost";
         [SerializeField]
         private int m_port = 4000;
-        [SerializeField]
-        private bool m_isConnected;
-        [SerializeField]
+        [SerializeField, Tooltip("Time step of the server in milliseconds.")]
         private int m_timeStep = 100;
         [SerializeField]
         private NetworkEntity m_entityPrefab;
@@ -40,16 +41,16 @@ namespace UElixir
         public  string    HostName    => m_hostName;
         public  int       Port        => m_port;
         public  bool      IsConnected => m_client.Connected;
+
         /// <summary>
         /// Time step in seconds.
         /// </summary>
         public float TimeStep => m_timeStep * 0.001f;
 
-        private Thread                            m_listener;
+        private Thread                            m_listenerThread;
         private ConcurrentQueue<ResponseCallback> m_responseCallbacks = new ConcurrentQueue<ResponseCallback>();
         private Queue<Action>                     m_updateQueue       = new Queue<Action>();
-
-        private Dictionary<Guid, NetworkEntity> m_entities = new Dictionary<Guid, NetworkEntity>();
+        private Dictionary<Guid, NetworkEntity>   m_entities          = new Dictionary<Guid, NetworkEntity>();
 
         private void Awake()
         {
@@ -59,7 +60,7 @@ namespace UElixir
             }
             else if (Instance != this)
             {
-                Debug.LogError("NetworkManager should be one at a scene.");
+                Debug.LogError("NetworkManager should exist only one instance in a scene.");
             }
         }
 
@@ -85,13 +86,18 @@ namespace UElixir
                 m_client.Close();
             }
 
-            if (m_listener != null && m_listener.IsAlive)
+            if (m_listenerThread != null && m_listenerThread.IsAlive)
             {
-                m_listener.Abort();
+                m_listenerThread.Abort();
             }
         }
 
-        public async Task Connect(Action<bool> onConnect)
+        /// <summary>
+        /// Connects to server asynchronously.
+        /// </summary>
+        /// <param name="onConnect">Callback on task is completed.</param>
+        /// <returns></returns>
+        public async Task ConnectAsync(Action<bool> onConnect)
         {
             try
             {
@@ -114,14 +120,14 @@ namespace UElixir
 
         private void StartListenToServer()
         {
-            m_listener?.Abort();
+            m_listenerThread?.Abort();
 
-            m_listener = new Thread(ListenToServer)
+            m_listenerThread = new Thread(ListenToServer)
             {
                 IsBackground = true,
             };
 
-            m_listener.Start();
+            m_listenerThread.Start();
         }
 
         private void ListenToServer()
@@ -169,6 +175,8 @@ namespace UElixir
             if (response.Request.Equals("replicate_entity_states"))
             {
                 ReplicateEntityStates(response);
+
+                return;
             }
 
             while (m_responseCallbacks.Count > 0)
@@ -184,6 +192,11 @@ namespace UElixir
             }
         }
 
+        /// <summary>
+        /// Sends a message to server.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="responseCallback">Callback when got response from server. It can be null.</param>
         public void SendToServer(Message message, ResponseCallback responseCallback)
         {
             Assert.IsTrue(IsConnected);
@@ -269,6 +282,11 @@ namespace UElixir
         }
 
         #region Helper
+        /// <summary>
+        /// Spawns new <see cref="NetworkEntity"/> having local authority.
+        /// </summary>
+        /// <param name="prefab"></param>
+        /// <param name="onEntitySpawned"></param>
         public void SpawnLocalEntity(NetworkEntity prefab, EntitySpawnCallback onEntitySpawned)
         {
             Assert.IsTrue(Instance.IsConnected);
@@ -302,7 +320,7 @@ namespace UElixir
 
             EnqueueMainThreadCommand(() =>
             {
-                Guid newId = new Guid();
+                Guid newId;
 
                 try
                 {

@@ -6,6 +6,9 @@ using QuaternionConverter = UElixir.Serialization.QuaternionConverter;
 
 namespace UElixir
 {
+    /// <summary>
+    /// Simple wrapper for <see cref="JsonConvert"/>.
+    /// </summary>
     public static class JsonSerializer
     {
         public static string Serialize<T>(T value)
@@ -30,6 +33,8 @@ namespace UElixir
                 settings.Converters.Add(new QuaternionConverter());
             }
 
+            // TODO: need to add more Unity Types...
+
             return JsonConvert.SerializeObject(value, type, settings);
         }
 
@@ -51,6 +56,8 @@ namespace UElixir
             {
                 return JsonConvert.DeserializeObject(json, type, new QuaternionConverter());
             }
+
+            // TODO: need to add more Unity Types...
 
             return JsonConvert.DeserializeObject(json, type);
         }

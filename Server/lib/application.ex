@@ -2,8 +2,6 @@ defmodule UElixir.Application do
   use Application
 
   def start(_type, _args) do
-    import Supervisor.Spec
-
     port = System.get_env("port", "4000") |> String.to_integer()
     time_step = System.get_env("time_step", "100") |> String.to_integer()
 

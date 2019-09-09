@@ -95,11 +95,6 @@ defmodule UElixir.Channel do
       Map.values(entity_states)
       |> Enum.join("\n")
 
-    # argument_string = Enum.reduce(user_list, "", fn {socket, user_id}, acc ->
-    #   client_state = %{client_id: user_id, entity_states: Map.get(entity_states, socket)}
-    #   {:ok, client_state_string} = Jason.encode(client_state)
-    #   acc <> "\n" <> client_state_string
-    # end)
     message = Response.new(:replicate_entity_states, :ok, argument_string)
 
     Enum.each(user_list, fn {socket, _user_id} ->

@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace UElixir
 {
+    /// <summary>
+    /// Collections of utilities for Authentication.
+    /// </summary>
     public static class Authentication
     {
         public static int ClientId { get; private set; } = -1;

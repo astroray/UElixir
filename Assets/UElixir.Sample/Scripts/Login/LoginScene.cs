@@ -34,7 +34,7 @@ namespace UElixir.Sample
         {
             if (!m_networkManager.IsConnected)
             {
-                await m_networkManager.Connect(OnConnectedToServer);
+                await m_networkManager.ConnectAsync(OnConnectedToServer);
             }
         }
 

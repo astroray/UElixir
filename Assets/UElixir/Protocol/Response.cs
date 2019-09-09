@@ -3,12 +3,18 @@ using Newtonsoft.Json;
 
 namespace UElixir
 {
+    /// <summary>
+    /// Command execution result.
+    /// </summary>
     public enum ERPCResult
     {
         Ok,
         Error
     }
 
+    /// <summary>
+    /// Represents the message from server to clients.
+    /// </summary>
     [Serializable]
     public class Response
     {

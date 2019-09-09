@@ -4,6 +4,9 @@ using Newtonsoft.Json;
 
 namespace UElixir
 {
+    /// <summary>
+    /// Represents the message from clients to server.
+    /// </summary>
     [Serializable]
     public class Message
     {

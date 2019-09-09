@@ -8,6 +8,25 @@ using JsonPropertyAttribute = Newtonsoft.Json.JsonPropertyAttribute;
 
 namespace UElixir
 {
+    /// <summary>
+    /// Represents the state of <see cref="NetworkComponent"/>
+    /// </summary>
+    /// <example>
+    /// This will be serialized as json like
+    /// {
+    ///     "name": "NetworkTransform"
+    ///     "properties": [
+    ///         {
+    ///             "name": "position",
+    ///             "value": { "x": 0.3, "y": 83.5, "z": -33.0 }
+    ///         },
+    ///         {
+    ///             "name": "rotation",
+    ///             "value": { "x": 0.3, "y": 83.5, "z": -33.0, "w": 2.0 }
+    ///         }
+    ///     ]
+    /// }
+    /// </example>
     [Serializable]
     public struct NetworkComponentState
     {
@@ -18,9 +37,10 @@ namespace UElixir
     }
 
     /// <summary>
-    /// 
+    /// Represents the property of <see cref="NetworkComponent"/>
     /// </summary>
     /// <example>
+    /// This will be serialized as json like
     /// {
     ///     "name": "position"
     ///     "value": "{ "x": 0.3, "y": 83.5, "z": -33.0 }"
@@ -35,17 +55,20 @@ namespace UElixir
         public string Value { get; set; }
     }
 
+    /// <summary>
+    /// Base class for all network components.
+    /// </summary>
     [RequireComponent(typeof(NetworkEntity))]
     public abstract class NetworkComponent : MonoBehaviour
     {
-        /// <summary>
-        /// Set this value to true if this component should send message to server and replicate its properties.
-        /// </summary>
-        internal bool ShouldUpdate { get;  private set; }
-        public NetworkEntity Entity { get; set; }
-
         private IDictionary<string, PropertyInfo> m_properties;
+        
+        internal bool ShouldUpdate { get;  private set; }
+        public NetworkEntity Entity { get; private set; }
 
+        /// <summary>
+        /// Unity message <see cref="Awake"/>. If you override <see cref="Awake"/>, then should call base.<see cref="Awake"/>!
+        /// </summary>
         protected virtual void Awake()
         {
             Entity = GetComponent<NetworkEntity>();
@@ -108,6 +131,9 @@ namespace UElixir
             }
         }
 
+        /// <summary>
+        /// Unity message <see cref="Update"/>. If you override <see cref="Update"/>, then should call base.<see cref="Update"/>!
+        /// </summary>
         protected virtual void Update()
         {
             if (Entity.HasLocalAuthority)
@@ -116,6 +142,9 @@ namespace UElixir
             }
         }
 
+        /// <summary>
+        /// Checks whether this component should report the state to server. Default is always true.
+        /// </summary>
         protected virtual bool ShouldUpdateProperty()
         {
             return true;

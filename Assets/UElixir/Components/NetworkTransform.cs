@@ -5,14 +5,19 @@ using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using UnityEngine.Assertions;
+using QuaternionConverter = UElixir.Serialization.QuaternionConverter;
 
 namespace UElixir
 {
+    /// <summary>
+    /// Network aware transform.
+    /// Scale is ignored.
+    /// </summary>
     public sealed class NetworkTransform : NetworkComponent
     {
-        [SerializeField]
+        [SerializeField, Tooltip("Minimum difference position to send a message to server.")]
         private float m_positionThreshold = 0.01f;
-        [SerializeField]
+        [SerializeField, Tooltip("Minimum difference angle to send a message to server.")]
         private float m_rotationThreshold = 0.01f;
 
         [Replicable, JsonConverter(typeof(VectorConverter))]
@@ -80,6 +85,7 @@ namespace UElixir
             }
         }
 
+        #region NetworkComponent interfaces
         protected override bool ShouldUpdateProperty()
         {
             if ((Position - m_prePosition).sqrMagnitude > m_sqrPositionThreshold)
@@ -136,5 +142,6 @@ namespace UElixir
                 }
             }
         }
+        #endregion
     }
 }

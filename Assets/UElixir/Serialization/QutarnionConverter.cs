@@ -4,6 +4,9 @@ using Newtonsoft.Json;
 
 namespace UElixir.Serialization
 {
+    /// <summary>
+    /// Custom <see cref="JsonConverter"/> for <see cref="Quaternion"/>.
+    /// </summary>
     public class QuaternionConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)

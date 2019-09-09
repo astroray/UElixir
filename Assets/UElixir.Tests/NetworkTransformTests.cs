@@ -11,7 +11,6 @@ namespace UElixir.Tests
     {
         private Vector3          m_expectedPosition = new Vector3(42.0f, 42.0f, 42.0f);
         private Quaternion       m_expectedRotation = Quaternion.Euler(30.0f, 25.0f, -24.0f);
-        private Vector3          m_expectedScale    = new Vector3(22.0f, -12.0f, 33.44f);
         private NetworkTransform m_networkTransform;
 
         [UnitySetUp]
@@ -19,6 +18,7 @@ namespace UElixir.Tests
         {
             var gameObject = new GameObject();
             m_networkTransform = gameObject.AddComponent<NetworkTransform>();
+            m_networkTransform.Entity.HasLocalAuthority = true;
 
             yield return null;
         }
@@ -53,10 +53,6 @@ namespace UElixir.Tests
                         break;
                     case "Rotation":
                         Assert.AreEqual(m_expectedRotation, JsonSerializer.Deserialize<Quaternion>(property.Value));
-
-                        break;
-                    case "Scale":
-                        Assert.AreEqual(m_expectedScale, JsonSerializer.Deserialize<Vector3>(property.Value));
 
                         break;
                     default:

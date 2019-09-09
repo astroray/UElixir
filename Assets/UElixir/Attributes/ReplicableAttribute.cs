@@ -1,10 +1,10 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 
 namespace UElixir
 {
+    /// <summary>
+    /// Marks property as replicable.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public class ReplicableAttribute : Attribute
     {
