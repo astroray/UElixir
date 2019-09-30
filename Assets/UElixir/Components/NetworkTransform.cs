@@ -10,14 +10,14 @@ using QuaternionConverter = UElixir.Serialization.QuaternionConverter;
 namespace UElixir
 {
     /// <summary>
-    /// Network aware transform.
-    /// Scale is ignored.
+    /// Network-aware transform.
+    /// Scale values are ignored.
     /// </summary>
     public sealed class NetworkTransform : NetworkComponent
     {
-        [SerializeField, Tooltip("Minimum difference position to send a message to server.")]
+        [SerializeField, Tooltip("Minimum difference of position to send a message to server.")]
         private float m_positionThreshold = 0.01f;
-        [SerializeField, Tooltip("Minimum difference angle to send a message to server.")]
+        [SerializeField, Tooltip("Minimum difference of angle to send a message to server.")]
         private float m_rotationThreshold = 0.01f;
 
         [Replicable, JsonConverter(typeof(VectorConverter))]
@@ -45,44 +45,32 @@ namespace UElixir
             m_nextRotation = Rotation;
 
             m_sqrPositionThreshold = m_positionThreshold * m_positionThreshold;
-
-            StartCoroutine(UpdateTransform());
         }
 
-        private void OnDestroy()
+        private void FixedUpdate()
         {
-            StopAllCoroutines();
-        }
-
-        private IEnumerator UpdateTransform()
-        {
-            while (true)
+            if (Entity.HasLocalAuthority
+                || m_nextTimeStamp <= m_prevTimeStamp)
             {
-                yield return new WaitForFixedUpdate();
-
-                if (Entity.HasLocalAuthority
-                    || m_nextTimeStamp <= m_prevTimeStamp)
-                {
-                    continue;
-                }
-
-                var duration = (m_nextTimeStamp - m_prevTimeStamp) * NetworkManager.Instance.TimeStep;
-
-                if (m_timer > duration)
-                {
-                    Position = m_nextPosition;
-                    Rotation = m_nextRotation;
-
-                    continue;
-                }
-
-                var t = m_timer / duration;
-
-                Position = Vector3.Lerp(m_prePosition, m_nextPosition, t);
-                Rotation = Quaternion.Lerp(m_prevRotation, m_nextRotation, t);
-
-                m_timer += Time.fixedDeltaTime;
+                return;
             }
+
+            var duration = (m_nextTimeStamp - m_prevTimeStamp) * NetworkManager.Instance.TimeStep;
+
+            if (m_timer > duration)
+            {
+                Position = m_nextPosition;
+                Rotation = m_nextRotation;
+
+                return;
+            }
+
+            var t = m_timer / duration;
+
+            Position = Vector3.Lerp(m_prePosition, m_nextPosition, t);
+            Rotation = Quaternion.Lerp(m_prevRotation, m_nextRotation, t);
+
+            m_timer += Time.fixedDeltaTime;
         }
 
         #region NetworkComponent interfaces

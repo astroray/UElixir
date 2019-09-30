@@ -59,12 +59,13 @@ namespace UElixir
     /// Base class for all network components.
     /// </summary>
     [RequireComponent(typeof(NetworkEntity))]
+    [DisallowMultipleComponent]
     public abstract class NetworkComponent : MonoBehaviour
     {
         private IDictionary<string, PropertyInfo> m_properties;
-        
-        internal bool ShouldUpdate { get;  private set; }
-        public NetworkEntity Entity { get; private set; }
+
+        internal bool          ShouldUpdate { get; private set; }
+        public   NetworkEntity Entity       { get; private set; }
 
         /// <summary>
         /// Unity message <see cref="Awake"/>. If you override <see cref="Awake"/>, then should call base.<see cref="Awake"/>!

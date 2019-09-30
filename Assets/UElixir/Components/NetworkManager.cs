@@ -21,6 +21,7 @@ namespace UElixir
     /// Manages network resources such as Socket.
     /// This component should exist only one instance in the scene.
     /// </summary>
+    [DisallowMultipleComponent]
     public sealed class NetworkManager : MonoBehaviour
     {
         private static NetworkManager m_instance;
@@ -101,7 +102,10 @@ namespace UElixir
         {
             try
             {
-                var address = Dns.GetHostEntry(HostName).AddressList.First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+                var address = Dns.GetHostEntry(HostName)
+                                 .AddressList
+                                 .First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+
                 await m_client.ConnectAsync(address, Port);
 
                 if (IsConnected)
@@ -111,7 +115,6 @@ namespace UElixir
             }
             catch (Exception e)
             {
-                onConnect?.Invoke(IsConnected);
                 Debug.Log(e);
             }
 
@@ -130,6 +133,7 @@ namespace UElixir
             m_listenerThread.Start();
         }
 
+        [WorkerThread]
         private void ListenToServer()
         {
             using (var stream = m_client.GetStream())
@@ -167,6 +171,7 @@ namespace UElixir
             }
         }
 
+        [WorkerThread]
         private void HandleMessage(string line)
         {
             Debug.Log($"Got response : {line}");
@@ -179,16 +184,10 @@ namespace UElixir
                 return;
             }
 
-            while (m_responseCallbacks.Count > 0)
+            if (m_responseCallbacks.Count > 0
+                && m_responseCallbacks.TryDequeue(out var callback))
             {
-                if (m_responseCallbacks.TryDequeue(out var callback))
-                {
-                    callback.Invoke(response);
-
-                    break;
-                }
-
-                Thread.Sleep(m_waitInterval);
+                EnqueueMainThreadCommand(() => { callback.Invoke(response); });
             }
         }
 
@@ -219,7 +218,7 @@ namespace UElixir
         {
             if (!Authentication.IsAuthenticated
                 || m_entities.Count == 0
-                || !m_entities.Any(entity => entity.Value.ShouldUpdate))
+                || m_entities.All(entity => entity.Value.ShouldUpdate == false))
             {
                 return;
             }
@@ -238,6 +237,7 @@ namespace UElixir
             SendToServer(message, null);
         }
 
+        [WorkerThread]
         private void ReplicateEntityStates(Response response)
         {
             if (!Authentication.IsAuthenticated

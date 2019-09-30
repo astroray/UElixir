@@ -11,7 +11,7 @@ namespace UElixir
     /// Represents the state of <see cref="NetworkEntity"/>
     /// </summary>
     /// <example>
-    /// This will be serialized as json like
+    /// This will be serialized to json like
     /// {
     ///     "entity_id": "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
     ///     "component_states": [
@@ -43,6 +43,7 @@ namespace UElixir
     /// <summary>
     /// Represents unique entity on network.
     /// </summary>
+    [DisallowMultipleComponent]
     public sealed class NetworkEntity : MonoBehaviour
     {
         [SerializeField]
