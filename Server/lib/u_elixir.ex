@@ -1,8 +1,6 @@
 defmodule UElixir do
   require Logger
 
-  alias UElixir.Channel
-
   use GenServer
 
   # Client API
@@ -22,39 +20,39 @@ defmodule UElixir do
 
   @spec get_channel(integer) :: pid()
   def get_channel(channel_index) do
-    GenServer.call(__MODULE__, {:get_channel, channel_index})
+    {_, channel_pid, _, _} =
+      Supervisor.which_children(UElixir.ChannelSupervisor)
+      |> Enum.at(channel_index)
+
+    Logger.debug("Try get channel : #{channel_index} -> #{channel_pid}")
+
+    channel_pid
   end
 
   # Server API
-  def init(port: port, time_step: time_step, channel_count: channel_count) do
-    channel_list =
-      Enum.reduce(1..channel_count, %{}, fn channel_index, acc ->
-        {:ok, pid} = Channel.start_link(%{time_step: time_step, entity_states: %{}, user_list: %{}})
-        Map.put_new(acc, channel_index, pid)
-      end)
-
+  def init(port: port, time_step: time_step) do
     :ranch.start_listener(make_ref(), :ranch_tcp, [port: port], UElixir.Listener, [])
 
     start_tick(time_step)
-    {:ok, %{tick: 0, time_step: time_step, channel_list: channel_list}}
+    {:ok, %{tick: 0, time_step: time_step}}
   end
 
   defp start_tick(time_step) do
     Process.send_after(self(), {:tick, time_step}, time_step)
   end
 
-  def handle_info({:tick, time_step}, %{tick: tick, channel_list: channel_list}) do
+  def handle_info({:tick, time_step}, %{tick: tick}) do
     start_tick(time_step)
-    {:noreply, %{tick: tick + 1, channel_list: channel_list}}
+    {:noreply, %{tick: tick + 1}}
   end
 
   def handle_call(:get_time_step, _from, state = %{time_step: time_step}) do
     {:reply, time_step, state}
   end
 
-  def handle_call({:get_channel, channel_index}, _from, state = %{channel_list: channel_list}) do
-    {:reply, Map.get(channel_list, channel_index), state}
-  end
+  # def handle_call({:get_channel, channel_index}, _from, state = %{channel_list: channel_list}) do
+  #   {:reply, Map.get(channel_list, channel_index), state}
+  # end
 
   def handle_call(:get_current_tick, _from, state = %{tick: tick}) do
     {:reply, tick, state}

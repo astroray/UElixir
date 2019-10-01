@@ -3,13 +3,10 @@ defmodule UElixir.Channel do
   use GenServer
 
   # Client API
-  def start_link(default \\ %{time_step: 100, entity_states: %{}, user_list: %{}}) do
-    GenServer.start_link(__MODULE__, default)
+  def start_link(init_arg \\ %{time_step: 100}) do
+    GenServer.start_link(__MODULE__, init_arg)
   end
 
-  @doc """
-  True if user exists in the world
-  """
   @spec user_exists?(pid(), any()) :: true | false
   def user_exists?(pid, socket) do
     GenServer.call(pid, {:user_exists, socket})
@@ -32,9 +29,9 @@ defmodule UElixir.Channel do
   end
 
   # Server API
-  def init(initial_state = %{time_step: time_step}) do
+  def init(time_step: time_step) do
     schedule_broadcast(self(), time_step)
-    {:ok, initial_state}
+    {:ok, %{time_step: time_step, entity_states: %{}, user_list: %{}}}
   end
 
   def handle_call({:user_exists, socket}, _from, state = %{user_list: user_list}) do

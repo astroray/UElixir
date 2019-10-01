@@ -7,27 +7,81 @@ defmodule UElixir.Listener do
 
   alias UElixir.{Message, Response, Authentication, Channel}
 
-  # Client API
+  # # ------------------------- Original version
   def start_link(ref, _socket, transport, opts) do
     pid = :proc_lib.spawn_link(__MODULE__, :init, [{ref, transport, opts}])
     {:ok, pid}
   end
 
-  # Server API
   def init({ref, transport, _}) do
     Logger.info("Starts protocol")
-
     {:ok, socket} = :ranch.handshake(ref)
     :ok = transport.setopts(socket, active: true, nodelay: true)
+    Logger.info("Handshaking confirmed.")
 
     :gen_server.enter_loop(__MODULE__, [], %{
       ref: ref,
       socket: socket,
       transport: transport,
-      # Channel index where the user is, TODO: Dynamically assign the value
-      channel_index: 1
+      # Channel index where the user is, TODO: Dynamically assign the value according to user's location or accessing channel
+      channel_index: 0
     })
   end
+  # ------------------------- Original version
+
+  # ------------------------- Suggested version
+  # def start_link(ref, _socket, transport, opts) do
+  #   {:ok, pid} = GenServer.start_link(__MODULE__, {ref, transport, opts})
+  #   Logger.info("Starts link")
+  #   {:ok, pid}
+  # end
+
+  # # Server API
+  # def init({ref, transport, _}) do
+  #   Logger.info("Starts protocol")
+  #   {:ok, socket} = :ranch.handshake(ref)
+  #   :ok = transport.setopts(socket, active: true, nodelay: true)
+  #   Logger.info("Handshaking confirmed.")
+
+  #   {:ok,
+  #    %{
+  #      ref: ref,
+  #      socket: nil,
+  #      transport: transport,
+  #      channel_index: 1
+  #    }, 0} # <-- makes time_out to 0.
+  # end
+  # ------------------------- Suggested version
+
+  # ------------------------- Shoveling version
+  # def start_link(ref, _socket, transport, opts) do
+  #   {:ok, pid} = GenServer.start_link(__MODULE__, {ref, transport, opts})
+  #   Logger.info("Starts link")
+  #   {:ok, pid}
+  # end
+
+  # def init({ref, transport, _opts}) do
+  #   {
+  #     :ok,
+  #     %{
+  #       ref: ref,
+  #       socket: nil,
+  #       transport: transport,
+  #       channel_index: 1
+  #     }
+  #   }
+  # end
+
+  # def handle_info(
+  #       {:handshake, ref, transport, socket, time_out},
+  #       state
+  #     ) do
+  #   Logger.info("#{inspect(socket)}")
+  #   :ranch.handshake(ref)
+  #   Logger.info("#{inspect(socket)}")
+  #   {:noreply, %{state | socket: socket}}
+  # end
+  # ------------------------- Shoveling version
 
   # message receive callback
   def handle_info({:tcp, _socket, data}, state) do
@@ -40,7 +94,7 @@ defmodule UElixir.Listener do
   # on socket closed
   def handle_info(
         {:tcp_closed, socket},
-        state = %{socket: socket, transport: transport, channel_index: channel_index}
+        %{socket: socket, transport: transport, channel_index: channel_index} = state
       ) do
     Logger.info("Closing #{inspect(socket)}")
     transport.close(socket)
@@ -130,7 +184,6 @@ defmodule UElixir.Listener do
          argument_string,
          %{socket: socket, channel_index: channel_index}
        ) do
-
     UElixir.get_channel(channel_index)
     |> Channel.update_entity_states(socket, argument_string)
 
