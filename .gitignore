@@ -69,3 +69,5 @@ Server/erl_crash.dump
 Server/*.ez
 Server/uexlixir-*.tar
 Server/.elixir_ls
+Assets/UElixir/UElixir.cd
+Assets/UElixir/UElixir.cd.meta
