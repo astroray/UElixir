@@ -32,6 +32,9 @@ defmodule UElixir.Message do
       {:ok, %{id: id, request: request, arg: arg}} ->
         {:ok, %__MODULE__{id: id, request: String.to_atom(request), arg: arg}}
 
+      {:ok, _} ->
+        {:error, %MessageParsingError{error_type: :invalid_match, message: json}}
+
       {:error, error_type} ->
         {:error, %MessageParsingError{error_type: error_type, message: json}}
     end
