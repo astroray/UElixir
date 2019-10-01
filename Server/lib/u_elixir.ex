@@ -50,10 +50,6 @@ defmodule UElixir do
     {:reply, time_step, state}
   end
 
-  # def handle_call({:get_channel, channel_index}, _from, state = %{channel_list: channel_list}) do
-  #   {:reply, Map.get(channel_list, channel_index), state}
-  # end
-
   def handle_call(:get_current_tick, _from, state = %{tick: tick}) do
     {:reply, tick, state}
   end
